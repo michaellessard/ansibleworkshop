@@ -1,0 +1,45 @@
+---
+- name: Lab2 - All server setup
+  hosts: all
+  become: yes
+
+  tasks:
+        - name: Configure selinux to permissive
+          selinux:
+            policy: targeted
+            state: permissive
+
+        - name: Copy motd file
+          copy: src=motd dest=/etc/motd
+
+- name: Lab2 - Web server setup
+  hosts: web
+  become: yes
+
+  tasks:
+        - name: Install Apache
+          yum: name=httpd state=present
+          notify: StartApache
+
+        - name: Copy Index.html
+          copy: src=index.html dest=/var/www/html/index.html
+
+        - name: Set ssh root login at no
+          lineinfile: dest=/etc/ssh/sshd_config
+                line="PermitRootLogin no"
+                state=present
+          notify: RestartSSH
+
+
+        - name: Open Firewall ports
+          firewalld: zone=public port=80/tcp permanent=true state=enabled
+          notify: ReloadFirewall
+
+  handlers:
+        - name: StartApache
+          service: name=httpd state=started enabled=yes
+        - name: RestartSSH
+          service: name=sshd state=restarted enabled=yes
+        - name: ReloadFirewall
+          shell: firewall-cmd --reload
+
